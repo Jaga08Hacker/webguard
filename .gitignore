@@ -3,3 +3,4 @@ venv/
 __pycache__/
 *.pyc
 webguard.db
+.DS_Store
