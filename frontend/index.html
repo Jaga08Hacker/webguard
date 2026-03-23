@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WebGuard — Data Exposure Detection</title>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg:        #080c12;
+      --surface:   #0d1520;
+      --card:      #111c2e;
+      --border:    #1e3a5f;
+      --accent:    #00e5ff;
+      --green:     #00ff88;
+      --red:       #ff3b6b;
+      --orange:    #ffaa00;
+      --purple:    #a855f7;
+      --text:      #c9d8f0;
+      --muted:     #4a6080;
+      --glow:      0 0 20px rgba(0,229,255,0.25);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Background grid */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image:
+        linear-gradient(rgba(0,229,255,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,229,255,0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none; z-index: 0;
+    }
+
+    .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
+
+    /* ── HEADER ── */
+    header {
+      padding: 20px 0 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .logo {
+      display: flex; align-items: center; gap: 12px;
+    }
+    .logo-icon {
+      width: 40px; height: 40px;
+      background: linear-gradient(135deg, var(--accent), var(--green));
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; box-shadow: var(--glow);
+    }
+    .logo-text { font-family: 'Rajdhani', sans-serif; font-size: 24px; font-weight: 700; color: var(--accent); letter-spacing: 2px; }
+    .logo-sub { font-size: 10px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; }
+    .nav-tabs {
+      display: flex; gap: 4px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 4px;
+    }
+    .nav-tab {
+      padding: 6px 16px; border-radius: 7px; cursor: pointer;
+      font-family: 'Rajdhani', sans-serif; font-weight: 600; font-size: 13px;
+      color: var(--muted); transition: all 0.2s; border: none; background: none;
+      letter-spacing: 0.5px;
+    }
+    .nav-tab.active, .nav-tab:hover {
+      background: var(--card); color: var(--accent);
+    }
+
+    /* ── HERO ── */
+    .hero {
+      padding: 40px 0 32px; text-align: center;
+    }
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(0,229,255,0.08); border: 1px solid rgba(0,229,255,0.2);
+      border-radius: 20px; padding: 4px 14px; margin-bottom: 20px;
+      font-size: 11px; color: var(--accent); letter-spacing: 1px; text-transform: uppercase;
+    }
+    .hero h1 {
+      font-family: 'Rajdhani', sans-serif; font-size: 42px; font-weight: 700;
+      line-height: 1.1; margin-bottom: 12px;
+    }
+    .hero h1 span { color: var(--accent); text-shadow: 0 0 30px rgba(0,229,255,0.4); }
+    .hero p { color: var(--muted); font-size: 15px; max-width: 520px; margin: 0 auto; line-height: 1.6; }
+
+    /* ── SCAN FORM ── */
+    .scan-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px; padding: 28px;
+      margin: 0 0 28px;
+      position: relative; overflow: hidden;
+    }
+    .scan-card::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent), var(--green), transparent);
+    }
+
+    .scan-row {
+      display: flex; gap: 12px; align-items: flex-end; margin-bottom: 20px;
+    }
+    .input-group { flex: 1; }
+    .input-label {
+      font-family: 'Rajdhani', sans-serif; font-size: 11px; font-weight: 600;
+      color: var(--muted); letter-spacing: 1.5px; text-transform: uppercase;
+      margin-bottom: 6px; display: block;
+    }
+    input[type="text"], input[type="password"] {
+      width: 100%; background: var(--card); border: 1px solid var(--border);
+      border-radius: 8px; padding: 10px 14px; color: var(--text);
+      font-family: 'Share Tech Mono', monospace; font-size: 13px;
+      transition: all 0.2s; outline: none;
+    }
+    input[type="text"]:focus, input[type="password"]:focus {
+      border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,229,255,0.1);
+    }
+    input::placeholder { color: var(--muted); }
+
+    .api-grid {
+      display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 20px;
+    }
+
+    .toggle-row {
+      display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 24px;
+    }
+    .toggle-btn {
+      display: flex; align-items: center; gap: 6px;
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 8px; padding: 7px 14px; cursor: pointer;
+      font-size: 12px; color: var(--muted); transition: all 0.2s;
+    }
+    .toggle-btn.on {
+      border-color: var(--green); color: var(--green);
+      background: rgba(0,255,136,0.07);
+    }
+    .toggle-btn .dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--muted); transition: background 0.2s;
+    }
+    .toggle-btn.on .dot { background: var(--green); box-shadow: 0 0 6px var(--green); }
+
+    .btn-scan {
+      width: 100%; padding: 14px; border: none; cursor: pointer;
+      background: linear-gradient(135deg, #0066cc, var(--accent));
+      color: #fff; font-family: 'Rajdhani', sans-serif; font-weight: 700;
+      font-size: 16px; letter-spacing: 2px; text-transform: uppercase;
+      border-radius: 10px; transition: all 0.2s; box-shadow: var(--glow);
+    }
+    .btn-scan:hover { transform: translateY(-1px); box-shadow: 0 0 30px rgba(0,229,255,0.4); }
+    .btn-scan:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    /* ── PROGRESS ── */
+    .progress-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 16px; padding: 28px; margin-bottom: 28px; display: none;
+    }
+    .progress-header {
+      display: flex; align-items: center; gap: 12px; margin-bottom: 20px;
+    }
+    .pulse-dot {
+      width: 10px; height: 10px; border-radius: 50%; background: var(--green);
+      animation: pulse 1s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; box-shadow: 0 0 6px var(--green); }
+      50% { opacity: 0.4; box-shadow: none; }
+    }
+    .progress-label { font-family: 'Rajdhani', sans-serif; font-size: 16px; font-weight: 600; color: var(--accent); }
+    .progress-bar-wrap {
+      background: var(--card); border-radius: 6px; height: 8px;
+      margin-bottom: 10px; overflow: hidden;
+    }
+    .progress-bar {
+      height: 100%; background: linear-gradient(90deg, var(--accent), var(--green));
+      border-radius: 6px; transition: width 0.5s ease;
+      box-shadow: 0 0 10px rgba(0,229,255,0.5);
+    }
+    .progress-step { font-family: 'Share Tech Mono', monospace; font-size: 12px; color: var(--muted); }
+
+    /* ── RESULTS ── */
+    .results-section { display: none; }
+    .risk-banner {
+      border-radius: 16px; padding: 28px; margin-bottom: 24px;
+      display: grid; grid-template-columns: auto 1fr auto; gap: 24px; align-items: center;
+      border: 1px solid;
+    }
+    .risk-banner.CRITICAL { background: rgba(255,59,107,0.08); border-color: var(--red); }
+    .risk-banner.HIGH     { background: rgba(255,170,0,0.08); border-color: var(--orange); }
+    .risk-banner.MEDIUM   { background: rgba(255,170,0,0.05); border-color: rgba(255,170,0,0.4); }
+    .risk-banner.LOW      { background: rgba(0,255,136,0.05); border-color: rgba(0,255,136,0.4); }
+
+    .risk-score-circle {
+      width: 90px; height: 90px; border-radius: 50%;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      border: 3px solid;
+    }
+    .risk-banner.CRITICAL .risk-score-circle { border-color: var(--red); color: var(--red); }
+    .risk-banner.HIGH     .risk-score-circle { border-color: var(--orange); color: var(--orange); }
+    .risk-banner.MEDIUM   .risk-score-circle { border-color: var(--orange); color: var(--orange); }
+    .risk-banner.LOW      .risk-score-circle { border-color: var(--green); color: var(--green); }
+
+    .score-num { font-family: 'Rajdhani', sans-serif; font-size: 28px; font-weight: 700; line-height: 1; }
+    .score-label { font-size: 9px; letter-spacing: 1px; opacity: 0.7; }
+    .risk-info h2 { font-family: 'Rajdhani', sans-serif; font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+    .risk-info p { color: var(--muted); font-size: 13px; line-height: 1.5; }
+    .download-btns { display: flex; flex-direction: column; gap: 8px; }
+    .btn-dl {
+      padding: 8px 18px; border-radius: 8px; cursor: pointer;
+      font-family: 'Rajdhani', sans-serif; font-weight: 600; font-size: 12px;
+      letter-spacing: 1px; text-transform: uppercase; text-decoration: none;
+      text-align: center; transition: all 0.2s; border: 1px solid;
+    }
+    .btn-dl.json { background: rgba(168,85,247,0.1); border-color: var(--purple); color: var(--purple); }
+    .btn-dl.csv  { background: rgba(0,229,255,0.1); border-color: var(--accent); color: var(--accent); }
+    .btn-dl.pdf  { background: rgba(255,59,107,0.1); border-color: var(--red); color: var(--red); }
+    .btn-dl:hover { transform: translateX(2px); filter: brightness(1.2); }
+
+    /* Stats grid */
+    .stats-grid {
+      display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-bottom: 24px;
+    }
+    .stat-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 16px; text-align: center;
+    }
+    .stat-num { font-family: 'Rajdhani', sans-serif; font-size: 28px; font-weight: 700; color: var(--accent); }
+    .stat-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-top: 2px; }
+
+    /* Findings tabs */
+    .findings-tabs {
+      display: flex; gap: 4px; margin-bottom: 16px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 4px; overflow-x: auto;
+    }
+    .ftab {
+      padding: 7px 16px; border-radius: 8px; cursor: pointer;
+      font-family: 'Rajdhani', sans-serif; font-weight: 600; font-size: 12px;
+      color: var(--muted); transition: all 0.2s; white-space: nowrap;
+      border: none; background: none; letter-spacing: 0.5px;
+    }
+    .ftab.active { background: var(--card); color: var(--accent); }
+    .ftab .badge {
+      display: inline-block; background: rgba(0,229,255,0.15);
+      color: var(--accent); border-radius: 10px; padding: 1px 6px;
+      font-size: 10px; margin-left: 4px;
+    }
+
+    .finding-panel { display: none; }
+    .finding-panel.active { display: block; }
+
+    /* Table */
+    .data-table {
+      width: 100%; border-collapse: collapse; font-size: 12px;
+    }
+    .data-table th {
+      background: var(--card); color: var(--accent);
+      font-family: 'Rajdhani', sans-serif; font-weight: 600; font-size: 11px;
+      letter-spacing: 1px; text-transform: uppercase;
+      padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border);
+    }
+    .data-table td {
+      padding: 9px 12px; border-bottom: 1px solid rgba(30,58,95,0.5);
+      color: var(--text); font-family: 'Share Tech Mono', monospace; font-size: 11px;
+      word-break: break-all;
+    }
+    .data-table tr:hover td { background: rgba(0,229,255,0.03); }
+
+    .badge-sev {
+      display: inline-block; padding: 2px 8px; border-radius: 4px;
+      font-size: 10px; font-weight: 700; letter-spacing: 0.5px;
+    }
+    .badge-sev.CRITICAL { background: rgba(255,59,107,0.15); color: var(--red); }
+    .badge-sev.HIGH     { background: rgba(255,170,0,0.15); color: var(--orange); }
+    .badge-sev.MEDIUM   { background: rgba(255,229,0,0.1); color: #ffe100; }
+    .badge-sev.LOW      { background: rgba(0,255,136,0.1); color: var(--green); }
+    .badge-sev.UNKNOWN  { background: rgba(100,100,100,0.15); color: var(--muted); }
+
+    .empty-state {
+      text-align: center; padding: 40px; color: var(--muted);
+    }
+    .empty-state .icon { font-size: 36px; margin-bottom: 10px; opacity: 0.4; }
+    .empty-state p { font-size: 13px; }
+
+    /* Recommendations */
+    .rec-list { list-style: none; }
+    .rec-list li {
+      display: flex; gap: 10px; align-items: flex-start;
+      padding: 12px 0; border-bottom: 1px solid rgba(30,58,95,0.5);
+    }
+    .rec-list li:last-child { border-bottom: none; }
+    .rec-num {
+      min-width: 24px; height: 24px; border-radius: 6px;
+      background: rgba(0,229,255,0.1); color: var(--accent);
+      font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 12px;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    /* ── HISTORY TAB ── */
+    .history-table { width: 100%; border-collapse: collapse; }
+    .history-table th {
+      background: var(--card); color: var(--accent);
+      font-family: 'Rajdhani', sans-serif; font-size: 11px; font-weight: 600;
+      letter-spacing: 1px; text-transform: uppercase;
+      padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border);
+    }
+    .history-table td {
+      padding: 11px 14px; border-bottom: 1px solid rgba(30,58,95,0.4);
+      font-size: 12px; font-family: 'Share Tech Mono', monospace;
+    }
+    .history-table tr:hover td { background: rgba(0,229,255,0.02); }
+    .btn-view {
+      padding: 4px 12px; border-radius: 6px; font-size: 11px; cursor: pointer;
+      border: 1px solid var(--accent); background: transparent; color: var(--accent);
+      font-family: 'Rajdhani', sans-serif; font-weight: 600; letter-spacing: 0.5px;
+      transition: all 0.2s;
+    }
+    .btn-view:hover { background: rgba(0,229,255,0.1); }
+
+    /* Misc */
+    .section-title {
+      font-family: 'Rajdhani', sans-serif; font-size: 16px; font-weight: 700;
+      color: var(--accent); letter-spacing: 1px; text-transform: uppercase;
+      margin-bottom: 16px; display: flex; align-items: center; gap: 8px;
+    }
+    .section-title::after {
+      content: ''; flex: 1; height: 1px; background: var(--border);
+    }
+    .tab-page { display: none; }
+    .tab-page.active { display: block; }
+
+    @media (max-width: 768px) {
+      .stats-grid { grid-template-columns: repeat(3, 1fr); }
+      .api-grid { grid-template-columns: 1fr; }
+      .scan-row { flex-direction: column; }
+      .risk-banner { grid-template-columns: 1fr; text-align: center; }
+      .download-btns { flex-direction: row; justify-content: center; flex-wrap: wrap; }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <div class="logo">
+      <div class="logo-icon">🛡</div>
+      <div>
+        <div class="logo-text">WEBGUARD</div>
+        <div class="logo-sub">Data Exposure Detection</div>
+      </div>
+    </div>
+    <div class="nav-tabs">
+      <button class="nav-tab active" onclick="switchTab('scan')">Scan</button>
+      <button class="nav-tab" onclick="switchTab('history')">History</button>
+      <button class="nav-tab" onclick="switchTab('about')">About</button>
+    </div>
+  </header>
+
+  <!-- ── SCAN PAGE ── -->
+  <div id="tab-scan" class="tab-page active">
+    <div class="hero">
+      <div class="hero-badge">⚡ Passive OSINT · Non-Intrusive</div>
+      <h1>Detect <span>Data Exposure</span><br/>Before Attackers Do</h1>
+      <p>Automated subdomain enumeration, Google dorking, Shodan scanning, S3 bucket checks, hidden path discovery & CVE mapping.</p>
+    </div>
+
+    <div class="scan-card">
+      <div class="section-title">Target Domain</div>
+      <div class="scan-row">
+        <div class="input-group" style="flex: 2">
+          <label class="input-label">Domain</label>
+          <input type="text" id="domainInput" placeholder="example.com (no https://)" />
+        </div>
+      </div>
+
+      <div class="section-title">API Keys <span style="font-size:11px;color:var(--green);font-family:'Inter',sans-serif;font-weight:400;letter-spacing:0;text-transform:none">&#x1F512; Auto-saved in your browser</span></div>
+      <div class="api-grid">
+        <div class="input-group">
+          <label class="input-label">Shodan API Key <span style="color:var(--red)">&#9733; Required</span></label>
+          <input type="password" id="shodanKey" placeholder="Enter your Shodan API key" oninput="saveKeys()" />
+        </div>
+        <div class="input-group">
+          <label class="input-label">Google API Key <span style="color:var(--muted);font-weight:400">&mdash; optional</span></label>
+          <input type="password" id="googleKey" placeholder="Leave blank = uses DuckDuckGo (free)" oninput="saveKeys()" />
+        </div>
+        <div class="input-group">
+          <label class="input-label">Google CX ID <span style="color:var(--muted);font-weight:400">&mdash; optional</span></label>
+          <input type="text" id="googleCx" placeholder="Only needed if using Google API" oninput="saveKeys()" />
+        </div>
+        <div class="input-group">
+          <label class="input-label">NVD API Key <span style="color:var(--muted);font-weight:400">&mdash; optional</span></label>
+          <input type="password" id="nvdKey" placeholder="Faster CVE lookup (optional)" oninput="saveKeys()" />
+        </div>
+      </div>
+      <div id="keysSavedMsg" style="display:none;margin-top:-8px;margin-bottom:14px;font-size:11px;color:var(--green);font-family:'Share Tech Mono',monospace">&#x2705; Keys saved &mdash; won't need to re-enter next time</div>
+      <div style="background:rgba(0,229,255,0.05);border:1px solid rgba(0,229,255,0.15);border-radius:8px;padding:10px 14px;margin-bottom:18px;font-size:11px;color:var(--muted);line-height:1.6">
+        &#x1F4A1; <strong style="color:var(--accent)">Google Dorking works without any API key</strong> &mdash; WebGuard uses DuckDuckGo automatically. Google API only needed for higher result limits.
+      </div>
+
+      <div class="section-title">Scan Modules</div>
+      <div class="toggle-row">
+        <div class="toggle-btn on" id="tog-subdomain" onclick="toggle(this)">
+          <span class="dot"></span> Subdomain Enum
+        </div>
+        <div class="toggle-btn on" id="tog-google" onclick="toggle(this)">
+          <span class="dot"></span> Google Dorking
+        </div>
+        <div class="toggle-btn on" id="tog-shodan" onclick="toggle(this)">
+          <span class="dot"></span> Shodan Scan
+        </div>
+        <div class="toggle-btn on" id="tog-s3" onclick="toggle(this)">
+          <span class="dot"></span> S3 Bucket Check
+        </div>
+        <div class="toggle-btn on" id="tog-hidden" onclick="toggle(this)">
+          <span class="dot"></span> Hidden Paths
+        </div>
+        <div class="toggle-btn on" id="tog-cve" onclick="toggle(this)">
+          <span class="dot"></span> CVE Mapping
+        </div>
+      </div>
+
+      <button class="btn-scan" id="startBtn" onclick="startScan()">⚡ START SCAN</button>
+    </div>
+
+    <!-- Progress -->
+    <div class="progress-card" id="progressCard">
+      <div class="progress-header">
+        <div class="pulse-dot"></div>
+        <div class="progress-label" id="progressLabel">Initializing scan...</div>
+      </div>
+      <div class="progress-bar-wrap">
+        <div class="progress-bar" id="progressBar" style="width: 0%"></div>
+      </div>
+      <div class="progress-step" id="progressStep">Please wait...</div>
+    </div>
+
+    <!-- Results -->
+    <div class="results-section" id="resultsSection">
+
+      <!-- Risk Banner -->
+      <div class="risk-banner" id="riskBanner">
+        <div class="risk-score-circle" id="riskCircle">
+          <div class="score-num" id="riskNum">0</div>
+          <div class="score-label">RISK</div>
+        </div>
+        <div class="risk-info">
+          <h2 id="riskTitle">Scanning...</h2>
+          <p id="riskDesc">Results will appear here.</p>
+        </div>
+        <div class="download-btns">
+          <a href="#" class="btn-dl json" id="dlJson">⬇ JSON</a>
+          <a href="#" class="btn-dl csv" id="dlCsv">⬇ CSV</a>
+          <a href="#" class="btn-dl pdf" id="dlPdf">⬇ PDF</a>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats-grid" id="statsGrid">
+        <div class="stat-card">
+          <div class="stat-num" id="st-sub">0</div>
+          <div class="stat-label">Subdomains</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num" id="st-dork">0</div>
+          <div class="stat-label">Dork Hits</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num" id="st-ports">0</div>
+          <div class="stat-label">Open Ports</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num" id="st-s3">0</div>
+          <div class="stat-label">S3 Buckets</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num" id="st-paths">0</div>
+          <div class="stat-label">Hidden Paths</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num" id="st-cve">0</div>
+          <div class="stat-label">CVEs</div>
+        </div>
+      </div>
+
+      <!-- Findings Tabs -->
+      <div class="findings-tabs">
+        <button class="ftab active" onclick="switchFinding('subdomains')">🌐 Subdomains <span class="badge" id="fb-sub">0</span></button>
+        <button class="ftab" onclick="switchFinding('dorks')">🔍 Google Dorks <span class="badge" id="fb-dork">0</span></button>
+        <button class="ftab" onclick="switchFinding('ports')">🔌 Open Ports <span class="badge" id="fb-ports">0</span></button>
+        <button class="ftab" onclick="switchFinding('s3')">☁️ S3 Buckets <span class="badge" id="fb-s3">0</span></button>
+        <button class="ftab" onclick="switchFinding('hidden')">🕵️ Hidden Paths <span class="badge" id="fb-hidden">0</span></button>
+        <button class="ftab" onclick="switchFinding('cves')">⚠️ CVEs <span class="badge" id="fb-cve">0</span></button>
+        <button class="ftab" onclick="switchFinding('recs')">💡 Recommendations</button>
+      </div>
+
+      <div id="fp-subdomains" class="finding-panel active">
+        <div class="scan-card">
+          <table class="data-table" id="tbl-subdomains">
+            <thead><tr><th>#</th><th>Subdomain</th><th>IP Address</th><th>Status</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="fp-dorks" class="finding-panel">
+        <div class="scan-card">
+          <table class="data-table" id="tbl-dorks">
+            <thead><tr><th>#</th><th>Type</th><th>URL</th><th>Severity</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="fp-ports" class="finding-panel">
+        <div class="scan-card">
+          <table class="data-table" id="tbl-ports">
+            <thead><tr><th>Port</th><th>Protocol</th><th>Service</th><th>Version</th><th>Banner</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="fp-s3" class="finding-panel">
+        <div class="scan-card">
+          <table class="data-table" id="tbl-s3">
+            <thead><tr><th>#</th><th>Bucket Name</th><th>URL</th><th>Status</th><th>Severity</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="fp-hidden" class="finding-panel">
+        <div class="scan-card">
+          <table class="data-table" id="tbl-hidden">
+            <thead><tr><th>#</th><th>Path</th><th>Status Code</th><th>Severity</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="fp-cves" class="finding-panel">
+        <div class="scan-card">
+          <table class="data-table" id="tbl-cves">
+            <thead><tr><th>CVE ID</th><th>CVSS</th><th>Severity</th><th>Source</th><th>Description</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="fp-recs" class="finding-panel">
+        <div class="scan-card">
+          <ul class="rec-list" id="recList"></ul>
+        </div>
+      </div>
+
+    </div><!-- end results-section -->
+  </div><!-- end tab-scan -->
+
+  <!-- ── HISTORY TAB ── -->
+  <div id="tab-history" class="tab-page">
+    <div style="margin: 32px 0 20px">
+      <div class="section-title">Scan History</div>
+    </div>
+    <div class="scan-card">
+      <table class="history-table" id="historyTable">
+        <thead>
+          <tr>
+            <th>Domain</th>
+            <th>Timestamp</th>
+            <th>Risk Score</th>
+            <th>Risk Level</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="historyBody"></tbody>
+      </table>
+      <div id="historyEmpty" class="empty-state" style="display:none">
+        <div class="icon">📋</div>
+        <p>No scans yet. Run your first scan!</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── ABOUT TAB ── -->
+  <div id="tab-about" class="tab-page">
+    <div style="margin: 32px 0 20px">
+      <div class="section-title">About WebGuard</div>
+    </div>
+    <div class="scan-card">
+      <p style="color:var(--text);line-height:1.8;margin-bottom:16px">
+        <strong style="color:var(--accent)">WebGuard</strong> is an automated, passive data-exposure detection tool
+        built for security researchers, ethical hackers, and system administrators. It uses OSINT techniques
+        to detect publicly accessible sensitive information — without attacking or harming the target system.
+      </p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:20px">
+        <div style="padding:16px;background:var(--card);border-radius:10px;border:1px solid var(--border)">
+          <div style="font-family:'Rajdhani',sans-serif;font-weight:700;color:var(--accent);margin-bottom:8px">🌐 Subdomain Enumeration</div>
+          <p style="color:var(--muted);font-size:12px;line-height:1.6">Uses crt.sh, HackerTarget, and DNS brute-force to find all subdomains associated with a domain.</p>
+        </div>
+        <div style="padding:16px;background:var(--card);border-radius:10px;border:1px solid var(--border)">
+          <div style="font-family:'Rajdhani',sans-serif;font-weight:700;color:var(--accent);margin-bottom:8px">🔍 Google Dorking</div>
+          <p style="color:var(--muted);font-size:12px;line-height:1.6">Searches for exposed files, credentials, admin panels, and sensitive data indexed by Google.</p>
+        </div>
+        <div style="padding:16px;background:var(--card);border-radius:10px;border:1px solid var(--border)">
+          <div style="font-family:'Rajdhani',sans-serif;font-weight:700;color:var(--accent);margin-bottom:8px">📡 Shodan Integration</div>
+          <p style="color:var(--muted);font-size:12px;line-height:1.6">Identifies open ports, services, and misconfigurations using the Shodan internet-wide scanner.</p>
+        </div>
+        <div style="padding:16px;background:var(--card);border-radius:10px;border:1px solid var(--border)">
+          <div style="font-family:'Rajdhani',sans-serif;font-weight:700;color:var(--accent);margin-bottom:8px">☁️ S3 Bucket Detection</div>
+          <p style="color:var(--muted);font-size:12px;line-height:1.6">Checks for publicly accessible Amazon S3 buckets using common naming patterns for the domain.</p>
+        </div>
+        <div style="padding:16px;background:var(--card);border-radius:10px;border:1px solid var(--border)">
+          <div style="font-family:'Rajdhani',sans-serif;font-weight:700;color:var(--accent);margin-bottom:8px">🕵️ Hidden Path Scanner</div>
+          <p style="color:var(--muted);font-size:12px;line-height:1.6">Discovers exposed admin panels, config files, backup files, and debug endpoints via HTTP probing.</p>
+        </div>
+        <div style="padding:16px;background:var(--card);border-radius:10px;border:1px solid var(--border)">
+          <div style="font-family:'Rajdhani',sans-serif;font-weight:700;color:var(--accent);margin-bottom:8px">⚠️ CVE Mapping</div>
+          <p style="color:var(--muted);font-size:12px;line-height:1.6">Maps detected services and software to known CVEs from NIST NVD and Shodan vulnerability data.</p>
+        </div>
+      </div>
+      <div style="margin-top:20px;padding:16px;background:rgba(255,59,107,0.05);border:1px solid rgba(255,59,107,0.2);border-radius:10px">
+        <strong style="color:var(--red)">⚠ Legal Disclaimer:</strong>
+        <span style="color:var(--muted);font-size:12px"> WebGuard is intended for educational use, authorized security auditing, and ethical research only. Only scan domains you own or have explicit permission to test. Unauthorized scanning may violate laws.</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const API = 'http://localhost:8000';
+  let currentScanId = null;
+  let pollInterval = null;
+
+  // ── AUTO-SAVE & LOAD API KEYS ──
+  function saveKeys() {
+    localStorage.setItem('wg_shodan', document.getElementById('shodanKey').value);
+    localStorage.setItem('wg_google', document.getElementById('googleKey').value);
+    localStorage.setItem('wg_cx',     document.getElementById('googleCx').value);
+    localStorage.setItem('wg_nvd',    document.getElementById('nvdKey').value);
+    const msg = document.getElementById('keysSavedMsg');
+    msg.style.display = 'block';
+    clearTimeout(window._saveTimer);
+    window._saveTimer = setTimeout(() => { msg.style.display = 'none'; }, 2500);
+  }
+
+  function loadKeys() {
+    const s = localStorage.getItem('wg_shodan');
+    const g = localStorage.getItem('wg_google');
+    const cx = localStorage.getItem('wg_cx');
+    const n = localStorage.getItem('wg_nvd');
+    if (s)  document.getElementById('shodanKey').value = s;
+    if (g)  document.getElementById('googleKey').value = g;
+    if (cx) document.getElementById('googleCx').value  = cx;
+    if (n)  document.getElementById('nvdKey').value    = n;
+    if (s || g || cx || n) {
+      const msg = document.getElementById('keysSavedMsg');
+      msg.textContent = '&#x1F511; API keys loaded from browser storage';
+      msg.style.display = 'block';
+      setTimeout(() => { msg.style.display = 'none'; }, 2000);
+    }
+  }
+
+  // Load keys on page ready
+  window.addEventListener('DOMContentLoaded', loadKeys);
+
+  function switchTab(name) {
+    document.querySelectorAll('.tab-page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    event.target.classList.add('active');
+    if (name === 'history') loadHistory();
+  }
+
+  function toggle(el) {
+    el.classList.toggle('on');
+  }
+
+  function switchFinding(name) {
+    document.querySelectorAll('.finding-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.ftab').forEach(t => t.classList.remove('active'));
+    document.getElementById('fp-' + name).classList.add('active');
+    event.target.classList.add('active');
+  }
+
+  async function startScan() {
+    const domain = document.getElementById('domainInput').value.trim();
+    if (!domain) return alert('Please enter a domain name!');
+
+    const body = {
+      domain,
+      shodan_key: document.getElementById('shodanKey').value.trim(),
+      google_key: document.getElementById('googleKey').value.trim(),
+      google_cx: document.getElementById('googleCx').value.trim(),
+      nvd_key: document.getElementById('nvdKey').value.trim(),
+      enable_shodan: document.getElementById('tog-shodan').classList.contains('on'),
+      enable_google: document.getElementById('tog-google').classList.contains('on'),
+      enable_s3: document.getElementById('tog-s3').classList.contains('on'),
+      enable_hidden: document.getElementById('tog-hidden').classList.contains('on'),
+    };
+
+    document.getElementById('startBtn').disabled = true;
+    document.getElementById('progressCard').style.display = 'block';
+    document.getElementById('resultsSection').style.display = 'none';
+
+    try {
+      const res = await fetch(`${API}/scan`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const data = await res.json();
+      currentScanId = data.scan_id;
+      pollStatus();
+    } catch (e) {
+      alert('Could not connect to WebGuard backend. Is it running on port 8000?');
+      document.getElementById('startBtn').disabled = false;
+    }
+  }
+
+  function pollStatus() {
+    clearInterval(pollInterval);
+    pollInterval = setInterval(async () => {
+      try {
+        const res = await fetch(`${API}/scan/${currentScanId}/status`);
+        const s = await res.json();
+        document.getElementById('progressBar').style.width = s.progress + '%';
+        document.getElementById('progressLabel').textContent = s.current_step || 'Scanning...';
+        document.getElementById('progressStep').textContent = `Progress: ${s.progress}%`;
+
+        if (s.status === 'completed') {
+          clearInterval(pollInterval);
+          loadResults(currentScanId);
+        } else if (s.status === 'error') {
+          clearInterval(pollInterval);
+          alert('Scan error: ' + (s.error || 'Unknown error'));
+          document.getElementById('startBtn').disabled = false;
+        }
+      } catch(e) {}
+    }, 1500);
+  }
+
+  async function loadResults(scanId) {
+    try {
+      const res = await fetch(`${API}/scan/${scanId}/results`);
+      const d = await res.json();
+      renderResults(d, scanId);
+    } catch(e) {
+      alert('Failed to load results.');
+    }
+  }
+
+  function renderResults(d, scanId) {
+    document.getElementById('progressCard').style.display = 'none';
+    document.getElementById('resultsSection').style.display = 'block';
+    document.getElementById('startBtn').disabled = false;
+
+    const level = d.risk_level || 'LOW';
+    const score = d.risk_score || 0;
+
+    const banner = document.getElementById('riskBanner');
+    banner.className = `risk-banner ${level}`;
+    document.getElementById('riskCircle').className = `risk-score-circle`;
+    document.getElementById('riskNum').textContent = score;
+    document.getElementById('riskTitle').textContent = `${level} Exposure Risk — ${d.domain}`;
+    const descs = {
+      CRITICAL: 'Critical data exposure detected. Immediate action required.',
+      HIGH: 'High number of exposed assets found. Prioritize remediation.',
+      MEDIUM: 'Moderate exposure. Review and address findings.',
+      LOW: 'Low exposure. Minor issues found. Monitor regularly.'
+    };
+    document.getElementById('riskDesc').textContent = descs[level] || '';
+
+    // Download links
+    document.getElementById('dlJson').href = `${API}/scan/${scanId}/report/json`;
+    document.getElementById('dlCsv').href  = `${API}/scan/${scanId}/report/csv`;
+    document.getElementById('dlPdf').href  = `${API}/scan/${scanId}/report/pdf`;
+
+    // Stats
+    document.getElementById('st-sub').textContent   = d.subdomains?.length || 0;
+    document.getElementById('st-dork').textContent  = d.google_dorks?.length || 0;
+    document.getElementById('st-ports').textContent = d.shodan?.open_ports?.length || 0;
+    document.getElementById('st-s3').textContent    = d.s3_buckets?.length || 0;
+    document.getElementById('st-paths').textContent = d.hidden_paths?.length || 0;
+    document.getElementById('st-cve').textContent   = d.cves?.length || 0;
+
+    // Badges
+    document.getElementById('fb-sub').textContent   = d.subdomains?.length || 0;
+    document.getElementById('fb-dork').textContent  = d.google_dorks?.length || 0;
+    document.getElementById('fb-ports').textContent = d.shodan?.open_ports?.length || 0;
+    document.getElementById('fb-s3').textContent    = d.s3_buckets?.length || 0;
+    document.getElementById('fb-hidden').textContent= d.hidden_paths?.length || 0;
+    document.getElementById('fb-cve').textContent   = d.cves?.length || 0;
+
+    // Tables
+    fillTable('tbl-subdomains', (d.subdomains||[]).map((s,i) => [i+1, s.subdomain, s.ip||'N/A', s.status]));
+    fillTable('tbl-dorks', (d.google_dorks||[]).map((x,i) => [i+1, x.dork_type, `<a href="${x.url}" target="_blank" style="color:var(--accent);word-break:break-all">${x.url.substring(0,60)}...</a>`, sev(x.severity)]));
+    fillTable('tbl-ports', (d.shodan?.services||[]).map(s => [s.port, s.protocol, s.service, s.version||'N/A', (s.banner||'').substring(0,60)]));
+    fillTable('tbl-s3', (d.s3_buckets||[]).map((b,i) => [i+1, b.bucket_name, b.url, b.status, sev(b.severity)]));
+    fillTable('tbl-hidden', (d.hidden_paths||[]).map((p,i) => [i+1, p.path, p.status_code, sev(p.severity)]));
+    fillTable('tbl-cves', (d.cves||[]).map(c => [c.cve_id, c.cvss_score, sev(c.severity), c.source, (c.description||'').substring(0,100)]));
+
+    // Recs
+    const recList = document.getElementById('recList');
+    recList.innerHTML = '';
+    const recs = d.risk_breakdown?.recommendations || [];
+    if (!recs.length) recList.innerHTML = '<li style="color:var(--muted)">No specific recommendations. Good posture!</li>';
+    recs.forEach((r, i) => {
+      recList.innerHTML += `<li><div class="rec-num">${i+1}</div><span>${r}</span></li>`;
+    });
+  }
+
+  function fillTable(id, rows) {
+    const tbody = document.querySelector(`#${id} tbody`);
+    tbody.innerHTML = '';
+    if (!rows.length) {
+      const colCount = document.querySelector(`#${id} thead tr`).children.length;
+      tbody.innerHTML = `<tr><td colspan="${colCount}" class="empty-state"><div class="icon" style="font-size:20px">✅</div><p>No findings</p></td></tr>`;
+      return;
+    }
+    rows.forEach(row => {
+      tbody.innerHTML += `<tr>${row.map(c => `<td>${c}</td>`).join('')}</tr>`;
+    });
+  }
+
+  function sev(s) {
+    return `<span class="badge-sev ${s||'UNKNOWN'}">${s||'N/A'}</span>`;
+  }
+
+  async function loadHistory() {
+    try {
+      const res = await fetch(`${API}/history`);
+      const data = await res.json();
+      const tbody = document.getElementById('historyBody');
+      tbody.innerHTML = '';
+      if (!data.length) {
+        document.getElementById('historyEmpty').style.display = 'block';
+        return;
+      }
+      document.getElementById('historyEmpty').style.display = 'none';
+      data.forEach(s => {
+        const lvlClass = s.risk_level === 'CRITICAL' ? 'var(--red)' : s.risk_level === 'HIGH' ? 'var(--orange)' : s.risk_level === 'LOW' ? 'var(--green)' : 'var(--accent)';
+        tbody.innerHTML += `<tr>
+          <td>${s.domain}</td>
+          <td>${s.timestamp?.replace('T',' ').substring(0,19)}</td>
+          <td>${s.risk_score}/100</td>
+          <td style="color:${lvlClass};font-weight:700">${s.risk_level}</td>
+          <td>
+            <button class="btn-view" onclick="viewHistoryScan('${s.id}')">View</button>
+          </td>
+        </tr>`;
+      });
+    } catch(e) {
+      document.getElementById('historyBody').innerHTML = '<tr><td colspan="5" style="color:var(--muted);text-align:center">Could not load history.</td></tr>';
+    }
+  }
+
+  async function viewHistoryScan(scanId) {
+    currentScanId = scanId;
+    switchTab('scan');
+    document.querySelector('.nav-tab').classList.add('active');
+    await loadResults(scanId);
+  }
+</script>
+</body>
+</html>
